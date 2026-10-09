@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // เฉพาะบัญชีแอดมินนี้เท่านั้นที่เขียนได้
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'jittipat_admin@jittipat-vault.app';
+    }
+
+    // ของแจก: ทุกคนอ่านได้ แอดมินเพิ่ม แก้ ลบได้
+    match /items/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ข้อความหน้า About Us
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // อย่างอื่นปิดทั้งหมด
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
