@@ -2,6 +2,7 @@
 (function(){
 "use strict";
 var TIKTOK = "https://www.tiktok.com/@yodmaleejittipat3?is_from_webapp=1&sender_device=pc";
+var DISCORD = "https://discord.com/users/1529079011651616813";
 var YOUTUBE = "https://youtube.com/@jittipatyodmalee?si=KYPWJ95cxp0hUKOC";
 var ADMIN_DOMAIN = "jittipat-vault.app"; // ชื่อผู้ใช้ jittipat_admin = อีเมล jittipat_admin@jittipat-vault.app ใน Firebase
 var DEFAULT_ABOUT = "สวัสดีครับ ผม Jittipat นักตัดต่อสาย After Effects\n\nทุกงานตัดต่อมีขั้นตอนที่ต้องทำซ้ำอยู่เสมอ ผมเลยเริ่มเขียนสคริปต์และทำของช่วยงานไว้ใช้เอง จนวันหนึ่งคิดว่าถ้าเครื่องมือพวกนี้ช่วยผมประหยัดเวลาได้ ก็น่าจะช่วยเพื่อนนักตัดต่อคนอื่นได้เหมือนกัน\n\nคลังนี้จึงเกิดขึ้นเพื่อแบ่งของที่ใช้งานได้จริงให้ทุกคนโหลดไปใช้ฟรี ติดตามผลงานและคลิปใหม่ ๆ ได้ที่ TikTok และ YouTube ด้านล่างนี้";
@@ -75,6 +76,7 @@ var ICON = {
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>',
   note: '<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M16 3v10.6A4 4 0 1 1 14 10V3h2zm0 0c.4 2.2 2 3.8 4 4v2.2c-1.6-.1-3-.7-4-1.6"/></svg>',
+  discord: '<svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24" aria-hidden="true"><path d="M19.6 5.3A16.4 16.4 0 0 0 15.5 4l-.5 1.1a15.2 15.2 0 0 0-6 0L8.5 4a16.4 16.4 0 0 0-4.1 1.3C1.8 9.2 1.1 13 1.4 16.8a16.6 16.6 0 0 0 5 2.6l1.1-1.8c-.6-.2-1.2-.5-1.7-.8l.4-.3a11.8 11.8 0 0 0 11.6 0l.4.3c-.5.3-1.1.6-1.7.8l1.1 1.8a16.5 16.5 0 0 0 5-2.6c.4-4.4-.7-8.2-3-11.5zM8.5 14.5c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2zm7 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2z"/></svg>',
   play: '<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5.5v13l11-6.5z"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>',
   back: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>'
@@ -99,7 +101,7 @@ root.innerHTML =
   '</div><div class="ruler" aria-hidden="true"><div class="ticks"></div><div class="playhead" id="playhead"></div><div class="ruler-tc" id="rulerTc">00:00:00:00</div></div></header>' +
   '<main id="main"><div class="wrap view" id="view"></div></main>' +
   '<footer><div class="wrap foot"><p>เว็บไซต์นี้สร้างและดูแลโดย <b>Jittipat_Editz</b></p>' +
-    '<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><a href="' + esc(TIKTOK) + '" target="_blank" rel="noopener">TikTok ↗</a><a href="' + esc(YOUTUBE) + '" target="_blank" rel="noopener">YouTube ↗</a><span class="tcf">© ' + new Date().getFullYear() + ' · ALL CLIPS RENDERED</span></div></div></footer>' +
+    '<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><a href="' + esc(TIKTOK) + '" target="_blank" rel="noopener">TikTok ↗</a><a href="' + esc(YOUTUBE) + '" target="_blank" rel="noopener">YouTube ↗</a><a href="' + esc(DISCORD) + '" target="_blank" rel="noopener">Discord ↗</a><span class="tcf">© ' + new Date().getFullYear() + ' · ALL CLIPS RENDERED</span></div></div></footer>' +
   '<div class="cut" id="cut" aria-hidden="true"><span></span><span></span><span></span></div>' +
   '<div class="toast" id="toast" role="status" aria-live="polite"></div>';
 
@@ -321,6 +323,7 @@ function viewAbout(){
     '<div class="socials">' +
       '<a class="social" href="' + esc(TIKTOK) + '" target="_blank" rel="noopener"><span class="ic">' + ICON.note + '</span><span><b>TikTok</b><small>@yodmaleejittipat3</small></span><span class="arrow">' + ICON.arrow + '</span></a>' +
       '<a class="social yt" href="' + esc(YOUTUBE) + '" target="_blank" rel="noopener"><span class="ic">' + ICON.play + '</span><span><b>YouTube</b><small>@jittipatyodmalee</small></span><span class="arrow">' + ICON.arrow + '</span></a>' +
+      '<a class="social dc" href="' + esc(DISCORD) + '" target="_blank" rel="noopener" aria-label="ส่งข้อความหาทาง Discord"><span class="ic">' + ICON.discord + '</span><span><b>Discord</b><small>DM คุยกันได้เลย</small></span><span class="arrow">' + ICON.arrow + '</span></a>' +
     '</div></div></div>';
 }
 

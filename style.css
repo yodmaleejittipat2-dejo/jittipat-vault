@@ -379,6 +379,8 @@ main{flex:1;position:relative}
 .social .ic{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:var(--fg);color:var(--bg);flex:none;transition:transform .35s}
 .social:hover .ic{transform:rotate(-10deg) scale(1.1)}
 .social.yt .ic{background:var(--rec);color:#fff}
+.social.dc .ic{background:#5865f2;color:#fff}
+.social.dc:hover{border-color:#5865f2;box-shadow:0 18px 40px -18px #5865f2}
 .social b{display:block;font-family:var(--display);font-size:17px}
 .social small{color:var(--muted);font-family:var(--mono);font-size:12px}
 .social .arrow{margin-left:auto;transition:transform .3s}
