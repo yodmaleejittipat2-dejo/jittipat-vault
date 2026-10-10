@@ -6,8 +6,8 @@ var YOUTUBE = "https://youtube.com/@jittipatyodmalee?si=KYPWJ95cxp0hUKOC";
 var ADMIN_DOMAIN = "jittipat-vault.app"; // ชื่อผู้ใช้ jittipat_admin = อีเมล jittipat_admin@jittipat-vault.app ใน Firebase
 var DEFAULT_ABOUT = "สวัสดีครับ ผม Jittipat นักตัดต่อสาย After Effects\n\nทุกงานตัดต่อมีขั้นตอนที่ต้องทำซ้ำอยู่เสมอ ผมเลยเริ่มเขียนสคริปต์และทำของช่วยงานไว้ใช้เอง จนวันหนึ่งคิดว่าถ้าเครื่องมือพวกนี้ช่วยผมประหยัดเวลาได้ ก็น่าจะช่วยเพื่อนนักตัดต่อคนอื่นได้เหมือนกัน\n\nคลังนี้จึงเกิดขึ้นเพื่อแบ่งของที่ใช้งานได้จริงให้ทุกคนโหลดไปใช้ฟรี ติดตามผลงานและคลิปใหม่ ๆ ได้ที่ TikTok และ YouTube ด้านล่างนี้";
 
-var state = { about: DEFAULT_ABOUT, items: [] };
-var loaded = { items: false, about: false };
+var state = { about: DEFAULT_ABOUT, items: [], counters: {}, visits: null };
+var loaded = { items: false, about: false, counters: false };
 var setupError = "";
 
 var LANGS = [["xml","HTML"],["css","CSS"],["javascript","JavaScript"],["typescript","TypeScript"],["python","Python"],["java","Java"],["c","C"],["cpp","C++"],["csharp","C#"],["php","PHP"],["json","JSON"],["bash","Bash / Shell"],["sql","SQL"],["markdown","Markdown"],["yaml","YAML"],["go","Go"],["rust","Rust"],["kotlin","Kotlin"],["swift","Swift"],["ruby","Ruby"],["plaintext","Plain text"]];
@@ -137,16 +137,145 @@ function badgeHTML(it){
 function safeUrl(u){ return /^https?:\/\//i.test(String(u || "")) ? u : "#"; }
 function cardHTML(it){
   var cover = '<div class="cover">' + coverHTML(it) + '<span class="clip-tc">' + fakeDur(it) + '</span><div class="vf"><i></i><i></i><i></i><i></i></div></div>';
+  var id = esc(it.id);
   if (it.kind === "code") {
-    return '<a class="clip" href="#code-' + esc(it.id) + '">' + cover + '<div class="clip-body">' + badgeHTML(it) + '<h3>' + esc(it.title) + '</h3><div class="clip-foot"><span class="go">ดูโค้ด →</span></div></div></a>';
+    return '<a class="clip" href="#code-' + id + '">' + cover + '<div class="clip-body">' + badgeHTML(it) + '<h3>' + esc(it.title) + '</h3>' +
+      '<div class="clip-stats">' + ratingSummary(it.id) + '</div><div class="clip-foot"><span class="go">ดูโค้ด →</span></div></div></a>';
   }
+  var stats = '<div class="clip-stats">' + ratingSummary(it.id) + '<span class="dl-pill" title="ยอดดาวน์โหลด">' + ICON.down + '<span data-dlc="' + id + '">' + fmt(dlCount(it.id)) + '</span> ครั้ง</span></div>';
+  var dl = '<a class="btn sm primary" data-dl="' + id + '" href="' + esc(safeUrl(it.url)) + '" target="_blank" rel="noopener noreferrer">' + ICON.down + '<span class="glitch-txt">ดาวน์โหลด</span></a>';
   if (it.kind === "script") {
-    var href = '#script-' + esc(it.id);
+    var href = '#script-' + id;
     return '<article class="clip"><a class="clip-cover-link" href="' + href + '" aria-label="ดูรายละเอียด ' + esc(it.title) + '">' + cover + '</a><div class="clip-body">' + badgeHTML(it) +
-      '<h3><a class="clip-title" href="' + href + '">' + esc(it.title) + '</a></h3><div class="clip-foot"><a class="btn sm" href="' + href + '"><span class="glitch-txt">รายละเอียด</span></a>' +
-      '<a class="btn sm primary" href="' + esc(safeUrl(it.url)) + '" target="_blank" rel="noopener noreferrer">' + ICON.down + '<span class="glitch-txt">ดาวน์โหลด</span></a></div></div></article>';
+      '<h3><a class="clip-title" href="' + href + '">' + esc(it.title) + '</a></h3>' + stats +
+      '<div class="clip-foot"><a class="btn sm" href="' + href + '"><span class="glitch-txt">รายละเอียด</span></a>' + dl + '</div></div></article>';
   }
-  return '<article class="clip">' + cover + '<div class="clip-body">' + badgeHTML(it) + '<h3>' + esc(it.title) + '</h3><div class="clip-foot"><a class="btn sm primary" href="' + esc(safeUrl(it.url)) + '" target="_blank" rel="noopener noreferrer">' + ICON.down + '<span class="glitch-txt">ดาวน์โหลด</span></a></div></div></article>';
+  return '<article class="clip">' + cover + '<div class="clip-body">' + badgeHTML(it) + '<h3>' + esc(it.title) + '</h3>' + stats +
+    rateWidget(it.id, true) + '<div class="clip-foot">' + dl + '</div></div></article>';
+}
+
+/* ---------- counters, ratings, visitors ---------- */
+var STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6l2.85 5.9 6.45.8-4.75 4.45 1.2 6.4L12 17.05 6.25 20.15l1.2-6.4L2.7 9.3l6.45-.8z"/></svg>';
+var FIVE = STAR + STAR + STAR + STAR + STAR;
+function ctr(id){ return state.counters[id] || {}; }
+function dlCount(id){ return Math.max(0, ctr(id).downloads || 0); }
+function ratingOf(id){ var c = ctr(id), n = Math.max(0, c.ratingCount || 0); return { n: n, avg: n ? Math.max(0, Math.min(5, (c.ratingSum || 0) / n)) : 0 }; }
+function fmt(n){ return Number(n || 0).toLocaleString("th-TH"); }
+function myRating(id){ var v = +ls("je-rate-" + id); return v >= 1 && v <= 5 ? v : 0; }
+function ratingSummary(id){
+  var r = ratingOf(id);
+  return '<span class="rating-sum" data-rsum="' + esc(id) + '" aria-label="' + (r.n ? "คะแนนเฉลี่ย " + r.avg.toFixed(1) + " จาก 5 จาก " + r.n + " คน" : "ยังไม่มีคะแนน") + '">' +
+    '<span class="stars-ro" aria-hidden="true"><span class="s-bg">' + FIVE + '</span><span class="s-fg" style="width:' + (r.avg / 5 * 100).toFixed(1) + '%">' + FIVE + '</span></span>' +
+    '<b>' + (r.n ? r.avg.toFixed(1) : "–") + '</b><span class="rs-n">' + (r.n ? "(" + fmt(r.n) + " คน)" : "ยังไม่มีคะแนน") + '</span></span>';
+}
+function rateWidget(id, compact){
+  var mine = myRating(id);
+  var stars = '<div class="rate-stars" role="radiogroup" aria-label="ให้คะแนน 1 ถึง 5 ดาว">' + [1, 2, 3, 4, 5].map(function(n){
+    return '<button type="button" class="star' + (n <= mine ? " on" : "") + '" data-star="' + n + '" role="radio" aria-checked="' + (n === mine) + '" aria-label="' + n + ' ดาว">' + STAR + '</button>';
+  }).join("") + '</div>';
+  var note = '<span class="rate-note">' + (mine ? "คุณให้ " + mine + " ดาว · กดเพื่อเปลี่ยน" : "กดดาวเพื่อให้คะแนน") + '</span>';
+  if (compact) return '<div class="rate compact" data-rate-for="' + esc(id) + '">' + stars + note + '</div>';
+  var r = ratingOf(id);
+  return '<div class="rate full" data-rate-for="' + esc(id) + '"><div class="rate-score"><b>' + (r.n ? r.avg.toFixed(1) : "–") + '</b><span>/ 5</span></div>' +
+    '<div class="rate-main"><span class="lbl">ให้คะแนนของชิ้นนี้</span>' + stars + note +
+    '<span class="rate-count">' + (r.n ? "มีผู้ให้คะแนนแล้ว " + fmt(r.n) + " คน" : "ยังไม่มีใครให้คะแนน เป็นคนแรกเลย") + '</span></div></div>';
+}
+function ssGet(k){ try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+function ssSet(k, v){ try { sessionStorage.setItem(k, v); } catch (e) {} }
+function inc(n){ return firebase.firestore.FieldValue.increment(n); }
+function countDownload(id){
+  if (!db || ssGet("je-dl-" + id)) return;
+  ssSet("je-dl-" + id, "1");
+  db.collection("counters").doc(id).set({ downloads: inc(1) }, { merge: true }).catch(function(){ try { sessionStorage.removeItem("je-dl-" + id); } catch (e) {} });
+}
+function rate(id, n){
+  if (!db) { toast("ระบบยังไม่พร้อม ลองอีกครั้ง"); return; }
+  var prev = ratingOf(id).n > 0 ? myRating(id) : 0;
+  if (prev === n) { toast("คุณให้ " + n + " ดาวไว้แล้ว"); return; }
+  var ref = db.collection("counters").doc(id);
+  var job = prev ? ref.set({ ratingSum: inc(n - prev) }, { merge: true }) : ref.set({ ratingCount: inc(1), ratingSum: inc(n) }, { merge: true });
+  ls("je-rate-" + id, String(n)); updateLive();
+  document.querySelectorAll('[data-rate-for="' + id + '"] .star[data-star="' + n + '"]').forEach(function(b){ b.classList.add("pop"); });
+  job.then(function(){ toast(prev ? "เปลี่ยนคะแนนเป็น " + n + " ดาวแล้ว" : "ขอบคุณที่ให้ " + n + " ดาว!"); }, function(){
+    ls("je-rate-" + id, prev ? String(prev) : null); updateLive(); toast("ให้คะแนนไม่สำเร็จ ลองใหม่อีกครั้ง");
+  });
+}
+function countVisit(){
+  if (ls("je-visited") || ssGet("je-visited")) return;
+  ssSet("je-visited", "1");
+  db.collection("stats").doc("site").set({ visits: inc(1) }, { merge: true }).then(function(){ ls("je-visited", "1"); }, function(){});
+}
+/* refresh numbers in place, so typing, forms and scroll position are never disturbed */
+function updateLive(){
+  document.querySelectorAll("[data-rate-for]").forEach(function(el){ if (el.parentNode) el.outerHTML = rateWidget(el.getAttribute("data-rate-for"), el.classList.contains("compact")); });
+  document.querySelectorAll("[data-rsum]").forEach(function(el){ if (el.parentNode) el.outerHTML = ratingSummary(el.getAttribute("data-rsum")); });
+  document.querySelectorAll("[data-dlc]").forEach(function(el){ el.textContent = fmt(dlCount(el.getAttribute("data-dlc"))); });
+  var d = $("#dash"); if (d) { var wasIn = d.classList.contains("in"); d.outerHTML = dashHTML(); if (wasIn) $("#dash").classList.add("in"); bindDash(!dashAnimated); }
+}
+document.addEventListener("click", function(e){
+  var s = e.target.closest && e.target.closest("[data-star]");
+  if (s) { e.preventDefault(); var w = s.closest("[data-rate-for]"); if (w) rate(w.getAttribute("data-rate-for"), +s.getAttribute("data-star")); return; }
+  var d = e.target.closest && e.target.closest("[data-dl]");
+  if (d) countDownload(d.getAttribute("data-dl"));
+});
+document.addEventListener("mouseover", function(e){
+  var s = e.target.closest && e.target.closest("[data-star]"); if (!s) return;
+  var n = +s.getAttribute("data-star");
+  s.parentNode.querySelectorAll(".star").forEach(function(b){ b.classList.toggle("hov", +b.getAttribute("data-star") <= n); });
+});
+document.addEventListener("mouseout", function(e){
+  var g = e.target.closest && e.target.closest(".rate-stars"); if (!g || g.contains(e.relatedTarget)) return;
+  g.querySelectorAll(".star").forEach(function(b){ b.classList.remove("hov"); });
+});
+
+/* ---------- home dashboard ---------- */
+var dashAnimated = false;
+function dashHTML(){
+  var files = state.items.filter(function(i){ return i.kind === "file"; });
+  var scripts = state.items.filter(function(i){ return i.kind === "script"; });
+  function sum(list){ return list.reduce(function(a, i){ return a + dlCount(i.id); }, 0); }
+  var dFile = sum(files), dScript = sum(scripts), total = dFile + dScript;
+  var ratings = state.items.reduce(function(a, i){ return a + ratingOf(i.id).n; }, 0);
+  var top = files.concat(scripts).filter(function(i){ return dlCount(i.id) > 0; }).sort(function(a, b){ return dlCount(b.id) - dlCount(a.id); }).slice(0, 3);
+  var ready = loaded.counters && state.visits != null;
+  var pf = total ? dFile / total * 100 : 0, ps = total ? 100 - pf : 0;
+  function big(label, n, unit, cls){
+    return '<div class="dash-card dash-big ' + cls + '"><span class="lbl">' + label + '</span><b class="count" data-to="' + (ready ? n : "") + '">' + (ready ? fmt(n) : "–") + '</b><span class="unit">' + unit + '</span></div>';
+  }
+  return '<section class="dash" id="dash" aria-label="สถิติเว็บไซต์">' +
+    '<div class="section-head"><div><p class="eyebrow">// Render stats</p><h2>สถิติคลังสมบัติ</h2></div><span class="live"><i></i>LIVE</span></div>' +
+    '<div class="dash-grid">' +
+      big("ผู้เข้าชมทั้งหมด", state.visits || 0, "คน", "v") +
+      big("ยอดดาวน์โหลดทั้งหมด", total, "ครั้ง", "d") +
+      '<div class="dash-card dash-split"><span class="lbl">ดาวน์โหลดแยกตามหมวด</span>' +
+        '<div class="mix" role="img" aria-label="ไฟล์ ' + dFile + ' ครั้ง, Extension/Script ' + dScript + ' ครั้ง"><span class="m-file" style="width:' + pf.toFixed(1) + '%"></span><span class="m-script" style="width:' + ps.toFixed(1) + '%"></span></div>' +
+        '<ul class="legend"><li><i class="m-file"></i>ไฟล์<b>' + fmt(dFile) + '</b></li><li><i class="m-script"></i>Extension/Script<b>' + fmt(dScript) + '</b></li><li><i class="m-rate"></i>คะแนนที่ได้รับ<b>' + fmt(ratings) + '</b></li></ul></div>' +
+      '<div class="dash-card dash-top"><span class="lbl">ดาวน์โหลดมากที่สุด</span>' +
+        (top.length ? '<ol>' + top.map(function(i){
+          var name = i.kind === "script" ? '<a href="#script-' + esc(i.id) + '">' + esc(i.title) + '</a>' : '<span>' + esc(i.title) + '</span>';
+          return '<li>' + name + '<b>' + fmt(dlCount(i.id)) + '</b></li>';
+        }).join("") + '</ol>' : '<p class="muted">ยังไม่มีการดาวน์โหลด</p>') + '</div>' +
+    '</div></section>';
+}
+function bindDash(animate){
+  var d = $("#dash"); if (!d) return;
+  if (!("IntersectionObserver" in window)) { d.classList.add("in"); return; }
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if (!e.isIntersecting) return;
+      io.disconnect(); d.classList.add("in");
+      if (!animate || dashAnimated || reduced()) return;
+      var targets = document.querySelectorAll("#dash .count[data-to]");
+      if (!Array.prototype.some.call(targets, function(el){ return +el.getAttribute("data-to") > 0; })) return;
+      dashAnimated = true;
+      targets.forEach(function(el){
+        var to = +el.getAttribute("data-to"); if (!to) return;
+        var t0 = performance.now(), dur = 1300;
+        (function step(t){ var k = Math.min(1, Math.max(0, (t - t0) / dur)); el.textContent = fmt(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(step); })(t0);
+      });
+    });
+  }, { threshold: .3 });
+  io.observe(d);
 }
 function newest(){ return state.items.slice().sort(function(a, b){ return (b.created || 0) - (a.created || 0); }); }
 function loadingHTML(){ return '<div class="empty"><b>กำลังโหลดของแจก…</b>รอสักครู่</div>'; }
@@ -172,7 +301,7 @@ function viewHome(){
     '<section class="pitch" id="pitch"><div><p class="eyebrow">// สิ่งที่อยู่ในคลังนี้</p><h2>รวมสคริปต์ After Effects แจกฟรี <mark>สำหรับคนตัดต่อที่ไม่อยากเสียเวลา</mark></h2></div>' +
       '<div><p class="lead">รวบรวมสคริปต์และของแจกใช้งานจริง เอาไปกดใช้ย่นเวลาทำ AE ซะ จะได้เอาเวลาไปทำอย่างอื่น โหลดไปลุยกันเลย!</p>' +
       '<div class="stats"><div class="stat"><b>' + (loaded.items ? codes : "–") + '</b><span>Code</span></div><div class="stat"><b>' + (loaded.items ? files : "–") + '</b><span>ไฟล์</span></div><div class="stat"><b>' + (loaded.items ? scripts : "–") + '</b><span>Script</span></div></div></div></section>' +
-    '<section><div class="section-head"><div><p class="eyebrow">// อัปเดตล่าสุด</p><h2>ของแจกล่าสุด</h2></div><a class="btn sm" href="#resource"><span class="glitch-txt">ดูทั้งหมด →</span></a></div>' + body + '</section>';
+    '<section><div class="section-head"><div><p class="eyebrow">// อัปเดตล่าสุด</p><h2>ของแจกล่าสุด</h2></div><a class="btn sm" href="#resource"><span class="glitch-txt">ดูทั้งหมด →</span></a></div>' + body + '</section>' + dashHTML();
 }
 
 function viewAbout(){
@@ -223,7 +352,8 @@ function viewCode(id){
     '<div class="detail-head"><div>' + badgeHTML(it) + '<h1>' + esc(it.title) + '</h1></div><div class="cover">' + coverHTML(it) + '</div></div>' +
     '<div class="editor"><div class="editor-bar"><span class="lights"><i></i><i></i><i></i></span><span class="fname">main.' + esc(ext) + ' · ' + lines + ' บรรทัด · ' + esc(langName(it.lang)) + '</span>' +
       '<button class="btn sm primary" id="copyBtn" type="button">' + ICON.copy + '<span class="glitch-txt">คัดลอกโค้ด</span></button></div>' +
-    '<div class="editor-body"><div class="gutter" aria-hidden="true">' + nums.join("\n") + '</div><pre><code class="hljs" id="codeOut">' + highlight(it.code, it.lang) + '</code></pre></div></div>';
+    '<div class="editor-body"><div class="gutter" aria-hidden="true">' + nums.join("\n") + '</div><pre><code class="hljs" id="codeOut">' + highlight(it.code, it.lang) + '</code></pre></div></div>' +
+    '<div class="panel rate-panel">' + rateWidget(it.id, false) + '</div>';
 }
 
 function viewScript(id){
@@ -247,8 +377,9 @@ function viewScript(id){
         '<div class="sui-stage">' + stage + '</div>' + thumbs + '</div>' +
       '<aside class="panel script-info"><p class="eyebrow">// รายละเอียด</p>' +
         '<div class="desc">' + (it.desc ? esc(it.desc) : '<span class="muted">ยังไม่มีรายละเอียด</span>') + '</div>' +
-        '<dl class="meta"><div><dt>ประเภท</dt><dd>' + esc(stName(it)) + '</dd></div><div><dt>ภาพ Panel</dt><dd>' + panels.length + ' ภาพ</dd></div></dl>' +
-        '<div class="script-actions"><a class="btn primary" href="' + esc(safeUrl(it.url)) + '" target="_blank" rel="noopener noreferrer">' + ICON.down + '<span class="glitch-txt">ดาวน์โหลด</span></a>' + yt + '</div>' +
+        '<dl class="meta"><div><dt>ประเภท</dt><dd>' + esc(stName(it)) + '</dd></div><div><dt>ภาพ Panel</dt><dd>' + panels.length + ' ภาพ</dd></div><div><dt>ยอดดาวน์โหลด</dt><dd><span data-dlc="' + esc(it.id) + '">' + fmt(dlCount(it.id)) + '</span> ครั้ง</dd></div></dl>' +
+        '<div class="script-actions"><a class="btn primary" data-dl="' + esc(it.id) + '" href="' + esc(safeUrl(it.url)) + '" target="_blank" rel="noopener noreferrer">' + ICON.down + '<span class="glitch-txt">ดาวน์โหลด</span></a>' + yt + '</div>' +
+        rateWidget(it.id, false) +
       '</aside>' +
     '</div>';
 }
@@ -267,7 +398,7 @@ function listHTML(){
   var list = newest();
   return '<h2>ของแจกทั้งหมด</h2><p class="sub">' + list.length + ' รายการ · แก้ไขหรือลบได้จากตรงนี้</p>' +
     (list.length ? '<div class="list">' + list.map(function(it){
-      return '<div class="li"><div class="cover">' + coverHTML(it) + '</div><div style="min-width:0"><h4>' + esc(it.title) + '</h4>' + badgeHTML(it) + '</div><div class="acts">' +
+      return '<div class="li"><div class="cover">' + coverHTML(it) + '</div><div style="min-width:0"><h4>' + esc(it.title) + '</h4>' + badgeHTML(it) + '<div class="li-stats">' + ratingSummary(it.id) + (it.kind !== "code" ? '<span class="dl-pill">' + ICON.down + '<span data-dlc="' + esc(it.id) + '">' + fmt(dlCount(it.id)) + '</span></span>' : '') + '</div></div><div class="acts">' +
         '<button class="icon-btn" type="button" data-edit="' + esc(it.id) + '" aria-label="แก้ไข">' + ICON.edit + '</button>' +
         (ui.confirmDel === it.id ? '<button class="icon-btn confirm" type="button" data-del="' + esc(it.id) + '">ยืนยันลบ</button>' : '<button class="icon-btn danger" type="button" data-askdel="' + esc(it.id) + '" aria-label="ลบ">' + ICON.trash + '</button>') +
         '</div></div>';
@@ -400,7 +531,7 @@ function bindList(){
   document.querySelectorAll("[data-askdel]").forEach(function(b){ b.addEventListener("click", function(){ ui.confirmDel = b.getAttribute("data-askdel"); refreshList(); }); });
   document.querySelectorAll("[data-del]").forEach(function(b){ b.addEventListener("click", function(){
     var id = b.getAttribute("data-del"); b.disabled = true;
-    db.collection("items").doc(id).delete().then(function(){ ui.confirmDel = null; if (ui.editId === id) { ui.editId = null; render(false); } toast("ลบแล้ว"); }).catch(writeFail);
+    Promise.all([db.collection("items").doc(id).delete(), db.collection("counters").doc(id).delete().catch(function(){})]).then(function(){ ui.confirmDel = null; if (ui.editId === id) { ui.editId = null; render(false); } toast("ลบแล้ว"); }).catch(writeFail);
   }); });
 }
 function refreshList(){ var l = $("#adminList"); if (l) { l.innerHTML = listHTML(); bindList(); } }
@@ -511,6 +642,7 @@ function bindView(){
     var p = $("#pitch");
     if (p && "IntersectionObserver" in window) { var io = new IntersectionObserver(function(es){ es.forEach(function(e){ if (e.isIntersecting) { p.classList.add("on"); io.disconnect(); } }); }, { threshold: .4 }); io.observe(p); }
     else if (p) p.classList.add("on");
+    bindDash(true);
   }
   if (r === "resource") {
     document.querySelectorAll("[data-tab]").forEach(function(b){ b.addEventListener("click", function(){ ui.resTab = b.getAttribute("data-tab"); ui.filter = "all"; render(false); }); });
@@ -579,6 +711,14 @@ var db;
     state.items = snap.docs.map(function(d){ var x = d.data(); x.id = d.id; return x; });
     loaded.items = true; onData();
   }, function(){ setupError = "อ่านข้อมูลไม่ได้ ตรวจกฎ (Rules) ของ Firestore"; render(false); });
+  db.collection("counters").onSnapshot(function(snap){
+    var c = {}; snap.docs.forEach(function(d){ c[d.id] = d.data(); });
+    state.counters = c; loaded.counters = true; updateLive();
+  }, function(){ loaded.counters = true; });
+  db.collection("stats").doc("site").onSnapshot(function(d){
+    state.visits = d.exists ? (d.data().visits || 0) : 0; updateLive();
+  }, function(){});
+  countVisit();
   db.collection("settings").doc("site").onSnapshot(function(d){
     var a = d.exists && d.data().about; state.about = a || DEFAULT_ABOUT; loaded.about = true;
     if (current.route === "about") render(false);

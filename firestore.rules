@@ -2,11 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // เฉพาะบัญชีแอดมินนี้เท่านั้นที่เขียนได้
+    // เฉพาะบัญชีแอดมินนี้เท่านั้นที่แก้ไขของแจกได้
     function isAdmin() {
       return request.auth != null
         && request.auth.token.email == 'jittipat_admin@jittipat-vault.app';
     }
+    function newVal(f) { return request.resource.data.get(f, 0); }
+    function oldVal(f) { return resource.data.get(f, 0); }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
 
     // ของแจก: ทุกคนอ่านได้ แอดมินเพิ่ม แก้ ลบได้
     match /items/{itemId} {
@@ -18,6 +21,39 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // ยอดดาวน์โหลดและคะแนนดาวของแต่ละชิ้น
+    // ผู้ชมเพิ่มได้ทีละ 1 เท่านั้น แก้ตัวเลขเองตามใจไม่ได้
+    match /counters/{itemId} {
+      allow read: if true;
+      allow create: if exists(/databases/$(database)/documents/items/$(itemId))
+        && (
+          (request.resource.data.keys().hasOnly(['downloads']) && newVal('downloads') == 1)
+          || (request.resource.data.keys().hasOnly(['ratingSum', 'ratingCount'])
+              && newVal('ratingCount') == 1 && newVal('ratingSum') >= 1 && newVal('ratingSum') <= 5)
+        );
+      allow update: if
+        // ดาวน์โหลด +1
+        (changed().hasOnly(['downloads']) && newVal('downloads') == oldVal('downloads') + 1)
+        // ให้คะแนนใหม่ 1-5 ดาว
+        || (changed().hasOnly(['ratingSum', 'ratingCount'])
+            && newVal('ratingCount') == oldVal('ratingCount') + 1
+            && newVal('ratingSum') - oldVal('ratingSum') >= 1
+            && newVal('ratingSum') - oldVal('ratingSum') <= 5)
+        // เปลี่ยนคะแนนที่เคยให้
+        || (changed().hasOnly(['ratingSum'])
+            && newVal('ratingSum') - oldVal('ratingSum') >= -4
+            && newVal('ratingSum') - oldVal('ratingSum') <= 4)
+        || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ยอดผู้เข้าชมเว็บ
+    match /stats/site {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['visits']) && newVal('visits') == 1;
+      allow update: if (changed().hasOnly(['visits']) && newVal('visits') == oldVal('visits') + 1) || isAdmin();
     }
 
     // อย่างอื่นปิดทั้งหมด
