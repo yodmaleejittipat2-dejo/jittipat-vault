@@ -14,9 +14,16 @@ var LANGS = [["xml","HTML"],["css","CSS"],["javascript","JavaScript"],["typescri
 var LANG_NAME = {}; LANGS.forEach(function(l){ LANG_NAME[l[0]] = l[1]; });
 var FTYPES = [["pdf","PDF"],["png","PNG"],["jpeg","JPEG"],["text","Text"],["word","Word"],["other","อื่นๆ"]];
 var FT_NAME = {}; FTYPES.forEach(function(f){ FT_NAME[f[0]] = f[1]; });
-var STYPES = [["jsx","Script (.jsx)"],["jsxbin","Script (.jsxbin)"],["zxp","Extension (.zxp)"],["ffx","Preset (.ffx)"],["other","อื่นๆ"]];
-var ST_NAME = {}; STYPES.forEach(function(s){ ST_NAME[s[0]] = s[1]; });
-var ST_SHORT = { jsx: ".jsx", jsxbin: ".jsxbin", zxp: ".zxp", ffx: ".ffx" };
+var STYPES = [["jsx","Script (.jsx)"],["jsxbin","Script (.jsxbin)"],["zxp","Extension (.zxp)"],["other","อื่นๆ"]];
+var ST_NAME = { ffx: "Preset (.ffx)" }; STYPES.forEach(function(s){ ST_NAME[s[0]] = s[1]; });
+var PTYPES = [["aep","Project (.aep)"],["ffx","Preset (.ffx)"],["prproj","Project (.prproj)"],["mogrt","Template (.mogrt)"],["other","อื่นๆ"]];
+var PT_NAME = {}; PTYPES.forEach(function(s){ PT_NAME[s[0]] = s[1]; });
+var KIND = {
+  script: { label: "Extension/Script", tab: "scripts", types: STYPES, names: ST_NAME, def: "jsx", small: "SCRIPTUI PANEL", imgLabel: "ภาพ Panel", imgField: "ภาพ ScriptUI Panel", otherHint: "เช่น Plugin, .aex", descHint: "Script นี้ทำอะไรได้บ้าง ใช้กับ AE เวอร์ชันไหน วิธีติดตั้ง" },
+  preset: { label: "PJF/Preset", tab: "presets", types: PTYPES, names: PT_NAME, def: "aep", small: "PROJECT / PRESET", imgLabel: "ภาพตัวอย่าง", imgField: "ภาพตัวอย่าง", otherHint: "เช่น .zip, .prfpset", descHint: "ในไฟล์มีอะไรบ้าง ใช้กับ AE เวอร์ชันไหน ต้องลงฟอนต์หรือปลั๊กอินอะไรเพิ่ม" }
+};
+function isRich(k){ return k === "script" || k === "preset"; }
+var ST_SHORT = { jsx: ".jsx", jsxbin: ".jsxbin", zxp: ".zxp", ffx: ".ffx", aep: ".aep", prproj: ".prproj", mogrt: ".mogrt" };
 var MAX_PANELS = 6;
 
 var ui = { route: "home", resTab: "code", filter: "all", q: "", user: null, authReady: false, adminMode: "code", editId: null, cover: null, panels: [], confirmDel: null, busy: false };
@@ -28,9 +35,9 @@ function ls(k, v){ try { if (v === undefined) return localStorage.getItem(k); if
 function uid(){ return "x" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function langName(l){ return LANG_NAME[l] || (l ? String(l).toUpperCase() : "CODE"); }
 function ftName(it){ return it.fileType === "other" ? (it.fileTypeOther || "อื่นๆ") : (FT_NAME[it.fileType] || "FILE"); }
-function stName(it){ return it.scriptType === "other" ? (it.scriptTypeOther || "อื่นๆ") : (ST_NAME[it.scriptType] || "SCRIPT"); }
+function stName(it){ var K = KIND[it.kind] || KIND.script; return it.scriptType === "other" ? (it.scriptTypeOther || "อื่นๆ") : (K.names[it.scriptType] || ST_NAME[it.scriptType] || "FILE"); }
 function stShort(it){ return ST_SHORT[it.scriptType] || stName(it); }
-function typeName(it){ return it.kind === "code" ? langName(it.lang) : it.kind === "script" ? stName(it) : ftName(it); }
+function typeName(it){ return it.kind === "code" ? langName(it.lang) : isRich(it.kind) ? stName(it) : ftName(it); }
 function isYoutube(u){ return /^https?:\/\/(www\.|m\.|music\.)?(youtube\.com|youtu\.be)\/\S+$/i.test(String(u || "")); }
 function reduced(){ return window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches; }
 function tcode(sec){ var f = Math.floor(sec * 25); var p = function(n){ return (n < 10 ? "0" : "") + n; }; return p(Math.floor(f / 90000) % 24) + ":" + p(Math.floor(f / 1500) % 60) + ":" + p(Math.floor(f / 25) % 60) + ":" + p(f % 25); }
@@ -101,7 +108,7 @@ $("#themeBtn").addEventListener("click", function(){ var t = currentTheme() === 
 
 function renderNav(){
   var links = [["home","Home"],["about","About Us"],["resource","Resource"],["admin","Admin"]];
-  var sec = ui.route === "code" || ui.route === "script" ? "resource" : ui.route;
+  var sec = ui.route === "code" || isRich(ui.route) ? "resource" : ui.route;
   $("#nav").innerHTML = links.map(function(l){
     return '<a href="#' + l[0] + '"' + (l[0] === "admin" ? ' class="admin-link"' : "") + (sec === l[0] ? ' aria-current="page"' : "") + '>' + l[1] + '</a>';
   }).join("");
@@ -126,12 +133,12 @@ var t0 = performance.now();
 /* ---------- covers & cards ---------- */
 function coverHTML(it){
   if (it.cover) return '<img src="' + esc(it.cover) + '" alt="" loading="lazy">';
-  var small = it.kind === "code" ? "CODE CLIP" : it.kind === "script" ? "SCRIPTUI PANEL" : "FILE CLIP";
-  return '<div class="gen"><b>' + esc(it.kind === "script" ? stShort(it).toUpperCase() : typeName(it)) + '</b><small>' + small + '</small></div>';
+  var small = it.kind === "code" ? "CODE CLIP" : isRich(it.kind) ? KIND[it.kind].small : "FILE CLIP";
+  return '<div class="gen"><b>' + esc(isRich(it.kind) ? stShort(it).toUpperCase() : typeName(it)) + '</b><small>' + small + '</small></div>';
 }
 function badgeHTML(it){
   if (it.kind === "code") return '<span class="badge code"><span class="dot"></span>Code · ' + esc(langName(it.lang)) + '</span>';
-  if (it.kind === "script") return '<span class="badge script"><span class="dot"></span>Extension/Script · ' + esc(stShort(it)) + '</span>';
+  if (isRich(it.kind)) return '<span class="badge ' + it.kind + '"><span class="dot"></span>' + KIND[it.kind].label + ' · ' + esc(stShort(it)) + '</span>';
   return '<span class="badge file"><span class="dot"></span>ไฟล์ · ' + esc(ftName(it)) + '</span>';
 }
 function safeUrl(u){ return /^https?:\/\//i.test(String(u || "")) ? u : "#"; }
@@ -144,8 +151,8 @@ function cardHTML(it){
   }
   var stats = '<div class="clip-stats">' + ratingSummary(it.id) + '<span class="dl-pill" title="ยอดดาวน์โหลด">' + ICON.down + '<span data-dlc="' + id + '">' + fmt(dlCount(it.id)) + '</span> ครั้ง</span></div>';
   var dl = '<a class="btn sm primary" data-dl="' + id + '" href="' + esc(safeUrl(it.url)) + '" target="_blank" rel="noopener noreferrer">' + ICON.down + '<span class="glitch-txt">ดาวน์โหลด</span></a>';
-  if (it.kind === "script") {
-    var href = '#script-' + id;
+  if (isRich(it.kind)) {
+    var href = '#' + it.kind + '-' + id;
     return '<article class="clip"><a class="clip-cover-link" href="' + href + '" aria-label="ดูรายละเอียด ' + esc(it.title) + '">' + cover + '</a><div class="clip-body">' + badgeHTML(it) +
       '<h3><a class="clip-title" href="' + href + '">' + esc(it.title) + '</a></h3>' + stats +
       '<div class="clip-foot"><a class="btn sm" href="' + href + '"><span class="glitch-txt">รายละเอียด</span></a>' + dl + '</div></div></article>';
@@ -231,14 +238,14 @@ document.addEventListener("mouseout", function(e){
 /* ---------- home dashboard ---------- */
 var dashAnimated = false;
 function dashHTML(){
-  var files = state.items.filter(function(i){ return i.kind === "file"; });
-  var scripts = state.items.filter(function(i){ return i.kind === "script"; });
+  function ofKind(k){ return state.items.filter(function(i){ return i.kind === k; }); }
   function sum(list){ return list.reduce(function(a, i){ return a + dlCount(i.id); }, 0); }
-  var dFile = sum(files), dScript = sum(scripts), total = dFile + dScript;
+  var files = ofKind("file"), scripts = ofKind("script"), presets = ofKind("preset");
+  var dFile = sum(files), dScript = sum(scripts), dPreset = sum(presets), total = dFile + dScript + dPreset;
   var ratings = state.items.reduce(function(a, i){ return a + ratingOf(i.id).n; }, 0);
-  var top = files.concat(scripts).filter(function(i){ return dlCount(i.id) > 0; }).sort(function(a, b){ return dlCount(b.id) - dlCount(a.id); }).slice(0, 3);
+  var top = files.concat(scripts, presets).filter(function(i){ return dlCount(i.id) > 0; }).sort(function(a, b){ return dlCount(b.id) - dlCount(a.id); }).slice(0, 3);
   var ready = loaded.counters && state.visits != null;
-  var pf = total ? dFile / total * 100 : 0, ps = total ? 100 - pf : 0;
+  function pct(v){ return (total ? v / total * 100 : 0).toFixed(1); }
   function big(label, n, unit, cls){
     return '<div class="dash-card dash-big ' + cls + '"><span class="lbl">' + label + '</span><b class="count" data-to="' + (ready ? n : "") + '">' + (ready ? fmt(n) : "–") + '</b><span class="unit">' + unit + '</span></div>';
   }
@@ -248,15 +255,18 @@ function dashHTML(){
       big("ผู้เข้าชมทั้งหมด", state.visits || 0, "คน", "v") +
       big("ยอดดาวน์โหลดทั้งหมด", total, "ครั้ง", "d") +
       '<div class="dash-card dash-split"><span class="lbl">ดาวน์โหลดแยกตามหมวด</span>' +
-        '<div class="mix" role="img" aria-label="ไฟล์ ' + dFile + ' ครั้ง, Extension/Script ' + dScript + ' ครั้ง"><span class="m-file" style="width:' + pf.toFixed(1) + '%"></span><span class="m-script" style="width:' + ps.toFixed(1) + '%"></span></div>' +
-        '<ul class="legend"><li><i class="m-file"></i>ไฟล์<b>' + fmt(dFile) + '</b></li><li><i class="m-script"></i>Extension/Script<b>' + fmt(dScript) + '</b></li><li><i class="m-rate"></i>คะแนนที่ได้รับ<b>' + fmt(ratings) + '</b></li></ul></div>' +
+        '<div class="mix" role="img" aria-label="ไฟล์ ' + dFile + ' ครั้ง, Extension/Script ' + dScript + ' ครั้ง, PJF/Preset ' + dPreset + ' ครั้ง">' +
+          '<span class="m-file" style="width:' + pct(dFile) + '%"></span><span class="m-script" style="width:' + pct(dScript) + '%"></span><span class="m-preset" style="width:' + pct(dPreset) + '%"></span></div>' +
+        '<ul class="legend"><li><i class="m-file"></i>ไฟล์<b>' + fmt(dFile) + '</b></li><li><i class="m-script"></i>Extension/Script<b>' + fmt(dScript) + '</b></li><li><i class="m-preset"></i>PJF/Preset<b>' + fmt(dPreset) + '</b></li><li><i class="m-rate"></i>คะแนนที่ได้รับ<b>' + fmt(ratings) + '</b></li></ul></div>' +
       '<div class="dash-card dash-top"><span class="lbl">ดาวน์โหลดมากที่สุด</span>' +
         (top.length ? '<ol>' + top.map(function(i){
-          var name = i.kind === "script" ? '<a href="#script-' + esc(i.id) + '">' + esc(i.title) + '</a>' : '<span>' + esc(i.title) + '</span>';
+          var name = isRich(i.kind) ? '<a href="#' + i.kind + '-' + esc(i.id) + '">' + esc(i.title) + '</a>' : '<span>' + esc(i.title) + '</span>';
           return '<li>' + name + '<b>' + fmt(dlCount(i.id)) + '</b></li>';
         }).join("") + '</ol>' : '<p class="muted">ยังไม่มีการดาวน์โหลด</p>') + '</div>' +
     '</div></section>';
 }
+
+
 function bindDash(animate){
   var d = $("#dash"); if (!d) return;
   if (!("IntersectionObserver" in window)) { d.classList.add("in"); return; }
@@ -286,6 +296,7 @@ function viewHome(){
   var codes = state.items.filter(function(i){ return i.kind === "code"; }).length;
   var files = state.items.filter(function(i){ return i.kind === "file"; }).length;
   var scripts = state.items.filter(function(i){ return i.kind === "script"; }).length;
+  var presets = state.items.filter(function(i){ return i.kind === "preset"; }).length;
   var latest = newest().slice(0, 3);
   var body = setupError ? setupHTML() : !loaded.items ? loadingHTML() : latest.length ? '<div class="grid">' + latest.map(cardHTML).join("") + '</div>' : '<div class="empty"><b>ยังไม่มีของแจก</b>ของแจกชิ้นแรกจะขึ้นตรงนี้ทันทีที่เพิ่มจากหน้า Admin</div>';
   return '<section class="hero">' +
@@ -300,7 +311,7 @@ function viewHome(){
     '</section>' +
     '<section class="pitch" id="pitch"><div><p class="eyebrow">// สิ่งที่อยู่ในคลังนี้</p><h2>รวมสคริปต์ After Effects แจกฟรี <mark>สำหรับคนตัดต่อที่ไม่อยากเสียเวลา</mark></h2></div>' +
       '<div><p class="lead">รวบรวมสคริปต์และของแจกใช้งานจริง เอาไปกดใช้ย่นเวลาทำ AE ซะ จะได้เอาเวลาไปทำอย่างอื่น โหลดไปลุยกันเลย!</p>' +
-      '<div class="stats"><div class="stat"><b>' + (loaded.items ? codes : "–") + '</b><span>Code</span></div><div class="stat"><b>' + (loaded.items ? files : "–") + '</b><span>ไฟล์</span></div><div class="stat"><b>' + (loaded.items ? scripts : "–") + '</b><span>Script</span></div></div></div></section>' +
+      '<div class="stats"><div class="stat"><b>' + (loaded.items ? codes : "–") + '</b><span>Code</span></div><div class="stat"><b>' + (loaded.items ? files : "–") + '</b><span>ไฟล์</span></div><div class="stat"><b>' + (loaded.items ? scripts : "–") + '</b><span>Script</span></div><div class="stat"><b>' + (loaded.items ? presets : "–") + '</b><span>PJF/Preset</span></div></div></div></section>' +
     '<section><div class="section-head"><div><p class="eyebrow">// อัปเดตล่าสุด</p><h2>ของแจกล่าสุด</h2></div><a class="btn sm" href="#resource"><span class="glitch-txt">ดูทั้งหมด →</span></a></div>' + body + '</section>' + dashHTML();
 }
 
@@ -315,27 +326,27 @@ function viewAbout(){
 
 function catKey(it){
   if (it.kind === "code") return it.lang;
-  if (it.kind === "script") return it.scriptType === "other" ? "other:" + (it.scriptTypeOther || "") : it.scriptType;
+  if (isRich(it.kind)) return it.scriptType === "other" ? "other:" + (it.scriptTypeOther || "") : it.scriptType;
   return it.fileType === "other" ? "other:" + (it.fileTypeOther || "") : it.fileType;
 }
-var TAB_KIND = { code: "code", files: "file", scripts: "script" };
+var TAB_KIND = { code: "code", files: "file", scripts: "script", presets: "preset" };
 function viewResource(){
   var kind = TAB_KIND[ui.resTab] || "code";
   var all = newest();
   var pool = all.filter(function(i){ return i.kind === kind; });
-  var counts = { code: 0, file: 0, script: 0 };
+  var counts = { code: 0, file: 0, script: 0, preset: 0 };
   all.forEach(function(i){ if (counts[i.kind] != null) counts[i.kind]++; });
   var cats = [];
   pool.forEach(function(i){ var k = catKey(i); if (cats.indexOf(k) < 0) cats.push(k); });
   if (ui.filter !== "all" && cats.indexOf(ui.filter) < 0) ui.filter = "all";
   var q = ui.q.trim().toLowerCase();
   var shown = pool.filter(function(i){ return (ui.filter === "all" || ui.filter === catKey(i)) && (!q || String(i.title).toLowerCase().indexOf(q) >= 0); });
-  function catLabel(k){ if (kind === "code") return langName(k); if (String(k).indexOf("other:") === 0) return k.slice(6) || "อื่นๆ"; return (kind === "script" ? ST_NAME[k] : FT_NAME[k]) || k; }
-  var emptyTitle = { code: "ยังไม่มีโค้ดแจก", file: "ยังไม่มีไฟล์แจก", script: "ยังไม่มี Extension/Script แจก" }[kind];
+  function catLabel(k){ if (kind === "code") return langName(k); if (String(k).indexOf("other:") === 0) return k.slice(6) || "อื่นๆ"; return (isRich(kind) ? KIND[kind].names[k] : FT_NAME[k]) || k; }
+  var emptyTitle = { code: "ยังไม่มีโค้ดแจก", file: "ยังไม่มีไฟล์แจก", script: "ยังไม่มี Extension/Script แจก", preset: "ยังไม่มี Project/Preset แจก" }[kind];
   var body = setupError ? setupHTML() : !loaded.items ? loadingHTML() : shown.length ? '<div class="grid" id="grid">' + shown.map(cardHTML).join("") + '</div>'
       : '<div class="empty"><b>' + (pool.length ? "ไม่พบงานที่ค้นหา" : emptyTitle) + '</b>' + (pool.length ? "ลองเปลี่ยนคำค้นหรือหมวดหมู่" : "ของแจกหมวดนี้จะขึ้นตรงนี้เมื่อมีการเพิ่มจากหน้า Admin") + '</div>';
   return '<div class="res-head"><div><p class="eyebrow">// Resource bin</p><h1 class="page-title">เลือกของแจกได้เลย</h1></div>' +
-      '<div class="tabs" role="tablist"><button class="tab" role="tab" data-tab="code" aria-selected="' + (kind === "code") + '">Code <span class="n">' + counts.code + '</span></button><button class="tab" role="tab" data-tab="files" aria-selected="' + (kind === "file") + '">ไฟล์ <span class="n">' + counts.file + '</span></button><button class="tab" role="tab" data-tab="scripts" aria-selected="' + (kind === "script") + '">Extension/Script <span class="n">' + counts.script + '</span></button></div>' +
+      '<div class="tabs" role="tablist"><button class="tab" role="tab" data-tab="code" aria-selected="' + (kind === "code") + '">Code <span class="n">' + counts.code + '</span></button><button class="tab" role="tab" data-tab="files" aria-selected="' + (kind === "file") + '">ไฟล์ <span class="n">' + counts.file + '</span></button><button class="tab" role="tab" data-tab="scripts" aria-selected="' + (kind === "script") + '">Extension/Script <span class="n">' + counts.script + '</span></button><button class="tab" role="tab" data-tab="presets" aria-selected="' + (kind === "preset") + '">PJF/Preset <span class="n">' + counts.preset + '</span></button></div>' +
       '<div class="filters"><button class="chip" data-f="all" aria-pressed="' + (ui.filter === "all") + '">ทั้งหมด</button>' +
         cats.map(function(c){ return '<button class="chip" data-f="' + esc(c) + '" aria-pressed="' + (ui.filter === c) + '">' + esc(catLabel(c)) + '</button>'; }).join("") +
         '<label class="search">' + ICON.search + '<input id="q" type="search" placeholder="ค้นหาชื่องาน" value="' + esc(ui.q) + '" aria-label="ค้นหาชื่องาน"></label></div>' +
@@ -356,33 +367,90 @@ function viewCode(id){
     '<div class="panel rate-panel">' + rateWidget(it.id, false) + '</div>';
 }
 
-function viewScript(id){
-  var back = '<a class="back" href="#resource-scripts">' + ICON.back + ' กลับไปหน้า Extension/Script</a>';
-  var it = state.items.find(function(i){ return i.id === id && i.kind === "script"; });
+function viewScript(id, kind){
+  kind = kind || "script";
+  var K = KIND[kind];
+  var back = '<a class="back" href="#resource-' + K.tab + '">' + ICON.back + ' กลับไปหน้า ' + K.label + '</a>';
+  var it = state.items.find(function(i){ return i.id === id && i.kind === kind; });
   if (!it) return back + (loaded.items ? '<div class="empty"><b>ไม่พบรายการนี้</b>อาจถูกลบไปแล้ว</div>' : loadingHTML());
   var panels = Array.isArray(it.panels) ? it.panels : [];
-  var stage = panels.length
-    ? '<img id="suiImg" src="' + esc(panels[0]) + '" alt="ภาพ ScriptUI Panel ของ ' + esc(it.title) + '">'
-    : '<div class="sui-empty"><b>ยังไม่มีภาพ Panel</b>ภาพหน้าตา Panel จะแสดงตรงนี้</div>';
-  var thumbs = panels.length > 1 ? '<div class="sui-thumbs">' + panels.map(function(p, i){
-    return '<button type="button" class="sui-thumb" data-pi="' + i + '" aria-pressed="' + (i === 0) + '" aria-label="ภาพที่ ' + (i + 1) + '"><img src="' + esc(p) + '" alt=""></button>';
-  }).join("") + '</div>' : "";
+  var viewer;
+  if (kind === "preset") {
+    var many = panels.length > 1;
+    viewer = '<div class="pv" id="pv" data-n="' + panels.length + '">' +
+      '<div class="pv-bar"><span class="pv-rec">● PREVIEW</span><span class="pv-name">' + esc(it.title) + '</span>' +
+        '<span class="pv-count" aria-live="polite">' + (panels.length ? '<b id="pvNow">1</b> / ' + panels.length : '0 / 0') + '</span></div>' +
+      '<div class="pv-stage" id="pvStage">' +
+        (panels.length
+          ? '<img id="pvImg" src="' + esc(panels[0]) + '" alt="ภาพตัวอย่างที่ 1 ของ ' + esc(it.title) + '">' +
+            (many ? '<button type="button" class="pv-nav prev" data-nav="-1" aria-label="ภาพก่อนหน้า">‹</button><button type="button" class="pv-nav next" data-nav="1" aria-label="ภาพถัดไป">›</button>' : '')
+          : '<div class="sui-empty"><b>ยังไม่มีภาพตัวอย่าง</b>ภาพตัวอย่างจะแสดงตรงนี้</div>') +
+        '<span class="pv-safe" aria-hidden="true"></span>' +
+      '</div>' +
+      (many ? '<div class="pv-dots" role="tablist" aria-label="เลือกภาพ">' + panels.map(function(p, i){
+        return '<button type="button" class="pv-dot" data-go="' + i + '" role="tab" aria-selected="' + (i === 0) + '" aria-label="ภาพที่ ' + (i + 1) + '"></button>';
+      }).join("") + '</div>' : '') +
+    '</div>';
+  } else {
+    var stage = panels.length
+      ? '<img id="suiImg" src="' + esc(panels[0]) + '" alt="ภาพ ScriptUI Panel ของ ' + esc(it.title) + '">'
+      : '<div class="sui-empty"><b>ยังไม่มีภาพ Panel</b>ภาพหน้าตา Panel จะแสดงตรงนี้</div>';
+    var thumbs = panels.length > 1 ? '<div class="sui-thumbs">' + panels.map(function(p, i){
+      return '<button type="button" class="sui-thumb" data-pi="' + i + '" aria-pressed="' + (i === 0) + '" aria-label="ภาพที่ ' + (i + 1) + '"><img src="' + esc(p) + '" alt=""></button>';
+    }).join("") + '</div>' : "";
+    viewer = '<div class="sui"><div class="sui-bar"><span class="sui-menu" aria-hidden="true">≡</span><span class="sui-tab">' + esc(it.title) + '</span><span class="sui-x" aria-hidden="true">»</span></div>' +
+      '<div class="sui-stage">' + stage + '</div>' + thumbs + '</div>';
+  }
   var yt = isYoutube(it.youtube)
     ? '<a class="btn rec" href="' + esc(it.youtube) + '" target="_blank" rel="noopener noreferrer">' + ICON.play + '<span class="glitch-txt">ดูวิธีการใช้งาน</span></a>'
     : '';
   return back +
     '<div class="detail-head"><div>' + badgeHTML(it) + '<h1>' + esc(it.title) + '</h1></div><div class="cover">' + coverHTML(it) + '</div></div>' +
-    '<div class="script-grid">' +
-      '<div class="sui"><div class="sui-bar"><span class="sui-menu" aria-hidden="true">≡</span><span class="sui-tab">' + esc(it.title) + '</span><span class="sui-x" aria-hidden="true">»</span></div>' +
-        '<div class="sui-stage">' + stage + '</div>' + thumbs + '</div>' +
+    '<div class="script-grid">' + viewer +
       '<aside class="panel script-info"><p class="eyebrow">// รายละเอียด</p>' +
         '<div class="desc">' + (it.desc ? esc(it.desc) : '<span class="muted">ยังไม่มีรายละเอียด</span>') + '</div>' +
-        '<dl class="meta"><div><dt>ประเภท</dt><dd>' + esc(stName(it)) + '</dd></div><div><dt>ภาพ Panel</dt><dd>' + panels.length + ' ภาพ</dd></div><div><dt>ยอดดาวน์โหลด</dt><dd><span data-dlc="' + esc(it.id) + '">' + fmt(dlCount(it.id)) + '</span> ครั้ง</dd></div></dl>' +
+        '<dl class="meta"><div><dt>ประเภท</dt><dd>' + esc(stName(it)) + '</dd></div><div><dt>' + K.imgLabel + '</dt><dd>' + panels.length + ' ภาพ</dd></div><div><dt>ยอดดาวน์โหลด</dt><dd><span data-dlc="' + esc(it.id) + '">' + fmt(dlCount(it.id)) + '</span> ครั้ง</dd></div></dl>' +
         '<div class="script-actions"><a class="btn primary" data-dl="' + esc(it.id) + '" href="' + esc(safeUrl(it.url)) + '" target="_blank" rel="noopener noreferrer">' + ICON.down + '<span class="glitch-txt">ดาวน์โหลด</span></a>' + yt + '</div>' +
         rateWidget(it.id, false) +
       '</aside>' +
     '</div>';
 }
+
+/* preset viewer: one image at a time, arrows, dots, keyboard and swipe */
+var pvIndex = 0;
+function pvShow(i, dir){
+  var it = state.items.find(function(x){ return x.id === current.id; });
+  var img = $("#pvImg"); if (!it || !img || !it.panels || !it.panels.length) return;
+  var n = it.panels.length;
+  pvIndex = (i + n) % n;
+  img.classList.remove("in-l", "in-r"); void img.offsetWidth;
+  img.classList.add(dir < 0 ? "in-l" : "in-r");
+  img.src = it.panels[pvIndex];
+  img.alt = "ภาพตัวอย่างที่ " + (pvIndex + 1) + " ของ " + it.title;
+  var now = $("#pvNow"); if (now) now.textContent = pvIndex + 1;
+  document.querySelectorAll("[data-go]").forEach(function(d){ d.setAttribute("aria-selected", String(+d.getAttribute("data-go") === pvIndex)); });
+}
+function bindPreset(){
+  pvIndex = 0;
+  var pv = $("#pv"); if (!pv) return;
+  pv.addEventListener("click", function(e){
+    var nav = e.target.closest("[data-nav]"), go = e.target.closest("[data-go]");
+    if (nav) { var d = +nav.getAttribute("data-nav"); pvShow(pvIndex + d, d); }
+    else if (go) { var t = +go.getAttribute("data-go"); pvShow(t, t < pvIndex ? -1 : 1); }
+  });
+  var st = $("#pvStage"), x0 = null;
+  st.addEventListener("touchstart", function(e){ x0 = e.touches[0].clientX; }, { passive: true });
+  st.addEventListener("touchend", function(e){
+    if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 40) pvShow(pvIndex + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
+  });
+}
+document.addEventListener("keydown", function(e){
+  if (current.route !== "preset" || !$("#pvImg") || /input|textarea|select/i.test((e.target.tagName || ""))) return;
+  if (e.key === "ArrowRight") pvShow(pvIndex + 1, 1);
+  if (e.key === "ArrowLeft") pvShow(pvIndex - 1, -1);
+});
+
 
 function viewLogin(){
   return '<div class="login-wrap"><form class="panel login" id="loginForm" novalidate autocomplete="off">' +
@@ -417,15 +485,15 @@ function viewAdmin(){
   return '<div class="section-head"><div><p class="eyebrow">// Admin console · jittipat_admin</p><h1 class="page-title">เพิ่มของแจก</h1></div><button class="btn sm ghost" type="button" id="logoutBtn"><span class="glitch-txt">ออกจากระบบ</span></button></div>' +
   '<div class="admin-grid"><div class="panel">' +
     (editing ? '<div class="editing"><span>กำลังแก้ไข: <b>' + esc(editing.title) + '</b></span><button class="btn sm ghost" id="cancelEdit" type="button">ยกเลิก</button></div>' : "") +
-    '<div class="modes"' + (editing ? ' hidden' : "") + '><button type="button" class="mode" data-mode="code" aria-pressed="' + (m === "code") + '"><b>โหมดแจก Code</b><small>วางโค้ด ระบบตรวจภาษาให้</small></button><button type="button" class="mode" data-mode="file" aria-pressed="' + (m === "file") + '"><b>โหมดแจกไฟล์</b><small>ใส่ลิงก์ Drive หรือลิงก์อื่น</small></button><button type="button" class="mode" data-mode="script" aria-pressed="' + (m === "script") + '"><b>โหมด Extension/Script</b><small>ลิงก์ + ภาพ Panel + คลิปสอน</small></button></div>' +
+    '<div class="modes"' + (editing ? ' hidden' : "") + '><button type="button" class="mode" data-mode="code" aria-pressed="' + (m === "code") + '"><b>โหมดแจก Code</b><small>วางโค้ด ระบบตรวจภาษาให้</small></button><button type="button" class="mode" data-mode="file" aria-pressed="' + (m === "file") + '"><b>โหมดแจกไฟล์</b><small>ใส่ลิงก์ Drive หรือลิงก์อื่น</small></button><button type="button" class="mode" data-mode="script" aria-pressed="' + (m === "script") + '"><b>โหมด Extension/Script</b><small>ลิงก์ + ภาพ Panel + คลิปสอน</small></button><button type="button" class="mode" data-mode="preset" aria-pressed="' + (m === "preset") + '"><b>โหมด PJF/Preset</b><small>Project / .ffx + ภาพตัวอย่าง + คลิปสอน</small></button></div>' +
     '<form id="itemForm" novalidate>' +
-      '<div class="field"><label for="f-title">ชื่องาน</label><input id="f-title" type="text" maxlength="120" required placeholder="' + (m === "code" ? "เช่น โครงสร้าง html พื้นฐาน" : m === "script" ? "เช่น Auto Layer Tools" : "เช่น แจกโครงสร้างใบงาน") + '" value="' + esc(d.title || "") + '"></div>' +
+      '<div class="field"><label for="f-title">ชื่องาน</label><input id="f-title" type="text" maxlength="120" required placeholder="' + (m === "code" ? "เช่น โครงสร้าง html พื้นฐาน" : m === "script" ? "เช่น Auto Layer Tools" : m === "preset" ? "เช่น Glitch Transition Pack" : "เช่น แจกโครงสร้างใบงาน") + '" value="' + esc(d.title || "") + '"></div>' +
       '<div class="field"><span class="lbl">ภาพหน้าปก</span><div class="drop" id="drop"><div class="thumb" id="thumb"></div><div><p>ลากรูปมาวาง หรือเลือกไฟล์ (JPG / PNG) ระบบจะย่อขนาดให้อัตโนมัติ</p><div class="acts"><label class="btn sm" for="f-cover">เลือกรูป</label><input id="f-cover" type="file" accept="image/*" hidden><button class="btn sm ghost" type="button" id="rmCover">ใช้ปกอัตโนมัติ</button></div></div></div></div>' +
       (m === "code"
         ? '<div class="field"><label for="f-code">วางโค้ด</label><textarea id="f-code" spellcheck="false" placeholder="วางโค้ดตรงนี้">' + esc(d.code || "") + '</textarea></div>' +
           '<div class="row2"><div class="field"><label for="f-lang">ภาษา</label><select id="f-lang">' + langOpts + '</select></div><div class="field"><span class="lbl">ผลตรวจจับ</span><div class="detect" id="detect"></div></div></div>' +
           '<div class="field"><span class="lbl">ตัวอย่างการไฮไลต์</span><div class="preview-code"><pre><code class="hljs" id="prev"></code></pre></div></div>'
-        : m === "script" ? scriptFieldsHTML(d)
+        : isRich(m) ? scriptFieldsHTML(d, m)
         : '<div class="field"><label for="f-url">ลิงก์ดาวน์โหลด</label><input id="f-url" type="url" placeholder="https://drive.google.com/..." value="' + esc(d.url || "") + '"></div>' +
           '<div class="row2"><div class="field"><label for="f-ftype">หมวดหมู่ไฟล์</label><select id="f-ftype">' + ftOpts + '</select></div><div class="field" id="otherWrap"' + (d.fileType === "other" ? "" : " hidden") + '><label for="f-fother">ระบุชนิดไฟล์</label><input id="f-fother" type="text" maxlength="24" placeholder="เช่น ZIP, AEP, MP4" value="' + esc(d.fileTypeOther || "") + '"></div></div>') +
       '<p class="err" id="formErr" hidden></p>' +
@@ -436,18 +504,22 @@ function viewAdmin(){
   '</div></div>';
 }
 
-function scriptFieldsHTML(d){
-  var opts = STYPES.map(function(s){ return '<option value="' + s[0] + '"' + ((d.scriptType || "jsx") === s[0] ? " selected" : "") + '>' + s[1] + '</option>'; }).join("");
+function scriptFieldsHTML(d, kind){
+  kind = kind || "script";
+  var K = KIND[kind];
+  var opts = K.types.map(function(s){ return '<option value="' + s[0] + '"' + ((d.scriptType || K.def) === s[0] ? " selected" : "") + '>' + s[1] + '</option>'; }).join("");
   return '<div class="field"><label for="f-url">ลิงก์ดาวน์โหลด</label><input id="f-url" type="url" placeholder="https://drive.google.com/..." value="' + esc(d.url || "") + '"></div>' +
     '<div class="row2"><div class="field"><label for="f-stype">ประเภท</label><select id="f-stype">' + opts + '</select></div>' +
-    '<div class="field" id="sOtherWrap"' + (d.scriptType === "other" ? "" : " hidden") + '><label for="f-sother">ระบุประเภท</label><input id="f-sother" type="text" maxlength="24" placeholder="เช่น Plugin, .aex" value="' + esc(d.scriptTypeOther || "") + '"></div></div>' +
-    '<div class="field"><span class="lbl">ภาพ ScriptUI Panel (สูงสุด ' + MAX_PANELS + ' ภาพ)</span>' +
+    '<div class="field" id="sOtherWrap"' + (d.scriptType === "other" ? "" : " hidden") + '><label for="f-sother">ระบุประเภท</label><input id="f-sother" type="text" maxlength="24" placeholder="' + K.otherHint + '" value="' + esc(d.scriptTypeOther || "") + '"></div></div>' +
+    '<div class="field"><span class="lbl">' + K.imgField + ' (สูงสุด ' + MAX_PANELS + ' ภาพ)</span>' +
       '<div class="panels-mgr" id="panels"></div>' +
-      '<div class="acts" style="display:flex;gap:8px;flex-wrap:wrap"><label class="btn sm" for="f-panel" id="addPanelBtn">+ เพิ่มภาพ Panel</label><input id="f-panel" type="file" accept="image/*" multiple hidden></div>' +
-      '<p class="hint">ภาพแรกจะเป็นภาพหลักในหน้ารายละเอียด กด ← เพื่อเลื่อนลำดับ</p></div>' +
-    '<div class="field"><label for="f-desc">รายละเอียด</label><textarea id="f-desc" class="prose" placeholder="Script นี้ทำอะไรได้บ้าง ใช้กับ AE เวอร์ชันไหน วิธีติดตั้ง">' + esc(d.desc || "") + '</textarea></div>' +
+      '<div class="acts" style="display:flex;gap:8px;flex-wrap:wrap"><label class="btn sm" for="f-panel" id="addPanelBtn">+ เพิ่ม' + K.imgLabel + '</label><input id="f-panel" type="file" accept="image/*" multiple hidden></div>' +
+      '<p class="hint">ภาพแรกจะแสดงก่อนในหน้ารายละเอียด กด ← เพื่อเลื่อนลำดับ</p></div>' +
+    '<div class="field"><label for="f-desc">รายละเอียด</label><textarea id="f-desc" class="prose" placeholder="' + K.descHint + '">' + esc(d.desc || "") + '</textarea></div>' +
     '<div class="field"><label for="f-yt">ลิงก์ YouTube สอนใช้งาน</label><input id="f-yt" type="url" placeholder="https://youtube.com/watch?v=..." value="' + esc(d.youtube || "") + '"></div>';
 }
+
+
 function renderPanels(){
   var box = $("#panels"); if (!box) return;
   box.innerHTML = ui.panels.length ? ui.panels.map(function(src, i){
@@ -560,7 +632,7 @@ function bindAdmin(){
     ta.addEventListener("keydown", function(e){ if (e.key === "Tab") { e.preventDefault(); ta.setRangeText("  ", ta.selectionStart, ta.selectionEnd, "end"); } });
     $("#f-lang").addEventListener("change", updateCodePreview);
     updateCodePreview();
-  } else if (ui.adminMode === "script") {
+  } else if (isRich(ui.adminMode)) {
     var st = $("#f-stype");
     st.addEventListener("change", function(){ $("#sOtherWrap").hidden = st.value !== "other"; setThumb(); });
     $("#f-sother").addEventListener("input", setThumb);
@@ -595,7 +667,7 @@ function bindAdmin(){
       if (!code.trim()) { formError("วางโค้ดก่อนเผยแพร่"); $("#f-code").focus(); return; }
       var sel = $("#f-lang").value;
       item.code = code; item.lang = sel === "auto" ? detectLang(code) : sel; item.langManual = sel !== "auto";
-    } else if (ui.adminMode === "script") {
+    } else if (isRich(ui.adminMode)) {
       var surl = $("#f-url").value.trim();
       if (!/^https?:\/\/\S+$/i.test(surl)) { formError("\u0e25\u0e34\u0e07\u0e01\u0e4c\u0e15\u0e49\u0e2d\u0e07\u0e02\u0e36\u0e49\u0e19\u0e15\u0e49\u0e19\u0e14\u0e49\u0e27\u0e22 http:// \u0e2b\u0e23\u0e37\u0e2d https://"); $("#f-url").focus(); return; }
       var yt = $("#f-yt").value.trim();
@@ -630,6 +702,8 @@ function parseHash(){
   var h = (location.hash || "").replace(/^#/, "");
   if (h.indexOf("code-") === 0) return { route: "code", id: h.slice(5) };
   if (h.indexOf("script-") === 0) return { route: "script", id: h.slice(7) };
+  if (h.indexOf("preset-") === 0) return { route: "preset", id: h.slice(7) };
+  if (h === "resource-presets") return { route: "resource", tab: "presets" };
   if (h === "resource-scripts") return { route: "resource", tab: "scripts" };
   if (h === "resource-files") return { route: "resource", tab: "files" };
   if (h === "about" || h === "resource" || h === "admin" || h === "home") return { route: h };
@@ -650,6 +724,7 @@ function bindView(){
     var q = $("#q");
     q.addEventListener("input", function(){ ui.q = q.value; var pos = q.selectionStart; render(false); var nq = $("#q"); nq.focus(); try { nq.setSelectionRange(pos, pos); } catch (e) {} });
   }
+  if (r === "preset") bindPreset();
   if (r === "script") {
     document.querySelectorAll("[data-pi]").forEach(function(b){ b.addEventListener("click", function(){
       var it = state.items.find(function(i){ return i.id === current.id; }); if (!it || !it.panels) return;
@@ -674,7 +749,7 @@ function render(animate){
   if (current.route === "resource" && current.tab) { ui.resTab = current.tab; current.tab = null; }
   ui.route = current.route;
   renderNav();
-  var html = current.route === "about" ? viewAbout() : current.route === "resource" ? viewResource() : current.route === "code" ? viewCode(current.id) : current.route === "script" ? viewScript(current.id) : current.route === "admin" ? viewAdmin() : viewHome();
+  var html = current.route === "about" ? viewAbout() : current.route === "resource" ? viewResource() : current.route === "code" ? viewCode(current.id) : current.route === "script" ? viewScript(current.id, "script") : current.route === "preset" ? viewScript(current.id, "preset") : current.route === "admin" ? viewAdmin() : viewHome();
   var v = $("#view");
   v.innerHTML = html;
   if (animate && !reduced()) { v.classList.remove("enter"); void v.offsetWidth; v.classList.add("enter"); }

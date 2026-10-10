@@ -104,6 +104,7 @@ main{flex:1;position:relative}
 .badge.code{color:var(--cyan)}
 .badge.file{color:var(--accent)}
 .badge.script{color:var(--tk-attr)}
+.badge.preset{color:var(--tk-tag)}
 .badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 
 /* ---------- home ---------- */
@@ -257,6 +258,35 @@ main{flex:1;position:relative}
 .script-actions{display:grid;gap:10px}
 .script-actions .btn{width:100%}
 
+/* PJF/Preset viewer: one image at a time, styled like a program monitor (fixed dark, like the AE UI) */
+.pv{--pv-bg:#111216;--pv-bar:#1b1c22;--pv-line:#33343d;--pv-fg:#e4e3ee;
+  background:var(--pv-bg);border:1px solid var(--pv-line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);color:var(--pv-fg);min-width:0}
+.pv-bar{display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;background:var(--pv-bar);border-bottom:1px solid var(--pv-line);font-family:var(--mono);font-size:12px}
+.pv-rec{color:#ff4d63;letter-spacing:.08em;flex:none}
+.pv-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.8}
+.pv-count{margin-left:auto;flex:none;font-variant-numeric:tabular-nums;opacity:.85}
+.pv-count b{color:#fff}
+.pv-stage{position:relative;display:grid;place-items:center;aspect-ratio:16/10;max-width:100%;padding:18px;overflow:hidden;touch-action:pan-y;
+  background:radial-gradient(ellipse at center,#1d1e26 0%,var(--pv-bg) 75%)}
+.pv-stage img{max-width:100%;max-height:100%;width:auto;height:auto;display:block;border-radius:4px;box-shadow:0 16px 40px -16px #000;user-select:none;-webkit-user-drag:none}
+.pv-stage img.in-r{animation:pvR .45s cubic-bezier(.2,.8,.2,1)}
+.pv-stage img.in-l{animation:pvL .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes pvR{from{opacity:0;transform:translateX(40px) scale(.98);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@keyframes pvL{from{opacity:0;transform:translateX(-40px) scale(.98);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+.pv-safe{position:absolute;inset:7%;border:1px dashed rgba(255,255,255,.12);border-radius:4px;pointer-events:none}
+.pv-nav{position:absolute;top:50%;width:46px;height:46px;margin-top:-23px;border-radius:50%;border:1px solid rgba(255,255,255,.22);
+  background:rgba(10,10,14,.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#fff;font-size:30px;line-height:1;
+  display:grid;place-items:center;padding:0 0 4px;cursor:pointer;z-index:2;transition:transform .25s cubic-bezier(.2,.9,.3,1.4),background .2s,border-color .2s}
+.pv-nav.prev{left:14px}.pv-nav.next{right:14px}
+.pv-nav:hover{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.pv-nav.prev:hover{transform:translateX(-3px) scale(1.08)}
+.pv-nav.next:hover{transform:translateX(3px) scale(1.08)}
+.pv-nav:active{transform:scale(.94)}
+.pv-dots{display:flex;justify-content:center;gap:8px;padding:12px;border-top:1px solid var(--pv-line);background:var(--pv-bar)}
+.pv-dot{width:28px;height:6px;padding:0;border:0;border-radius:3px;background:#3d3e48;cursor:pointer;transition:background .25s,width .3s cubic-bezier(.2,.8,.2,1)}
+.pv-dot:hover{background:#6b6c78}
+.pv-dot[aria-selected="true"]{background:var(--accent);width:44px}
+
 /* admin: ScriptUI panel images */
 .panels-mgr{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:10px}
 .pthumb{position:relative;aspect-ratio:4/3;max-width:100%;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#1e1e1e}
@@ -318,6 +348,7 @@ main{flex:1;position:relative}
 .m-file{background:var(--accent)}
 .m-script{background:var(--tk-attr)}
 .m-rate{background:var(--star)}
+.m-preset{background:var(--tk-tag)}
 .legend{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:14px}
 .legend li{display:flex;align-items:center;gap:8px}
 .legend i{width:10px;height:10px;border-radius:3px;flex:none}
@@ -358,7 +389,7 @@ main{flex:1;position:relative}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
 .panel h2{font-family:var(--display);font-size:22px;margin:0 0 4px}
 .panel .sub{color:var(--muted);font-size:14px;margin:0 0 18px}
-.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:20px}
 .mode{border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:14px;text-align:left;cursor:pointer;display:grid;gap:2px;transition:border-color .2s,transform .25s}
 .mode:hover{transform:translateY(-2px);border-color:var(--accent)}
 .mode b{font-family:var(--display);font-size:17px}
