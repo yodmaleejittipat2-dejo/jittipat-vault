@@ -323,7 +323,7 @@ function viewAbout(){
     '<div class="socials">' +
       '<a class="social" href="' + esc(TIKTOK) + '" target="_blank" rel="noopener"><span class="ic">' + ICON.note + '</span><span><b>TikTok</b><small>@yodmaleejittipat3</small></span><span class="arrow">' + ICON.arrow + '</span></a>' +
       '<a class="social yt" href="' + esc(YOUTUBE) + '" target="_blank" rel="noopener"><span class="ic">' + ICON.play + '</span><span><b>YouTube</b><small>@jittipatyodmalee</small></span><span class="arrow">' + ICON.arrow + '</span></a>' +
-      '<a class="social dc" href="' + esc(DISCORD) + '" target="_blank" rel="noopener" aria-label="ส่งข้อความหาทาง Discord"><span class="ic">' + ICON.discord + '</span><span><b>Discord</b><small>DM คุยกันได้เลย</small></span><span class="arrow">' + ICON.arrow + '</span></a>' +
+      '<a class="social dc" href="' + esc(DISCORD) + '" target="_blank" rel="noopener" aria-label="ส่งข้อความหาทาง Discord"><span class="ic">' + ICON.discord + '</span><span><b>Discord</b><small>DM สอบถาม</small></span><span class="arrow">' + ICON.arrow + '</span></a>' +
     '</div></div></div>';
 }
 
