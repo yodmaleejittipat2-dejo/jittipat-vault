@@ -17,6 +17,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // รายการของแจกแบบย่อ (แอดมินสร้างอัตโนมัติ) ช่วยประหยัดโควตาการอ่านของ Firebase
+    match /catalog/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ข้อความหน้า About Us
     match /settings/{docId} {
       allow read: if true;
